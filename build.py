@@ -13,16 +13,49 @@ try:
         search_str = 'class="okinawa kyushu-okinawa prefecture" data-code="47"'
         
         if search_str in svg_content:
-            # Find the transform part in this tag
-            # We assume standard formatting or just simple replacement if unique enough
-            # The original transform is transform="translate(52.000000, 193.000000)"
-            # We will use string replace on the specific known string from the file
+            # Move Okinawa
             old_transform = 'transform="translate(52.000000, 193.000000)"'
-            new_transform = 'transform="translate(600.000000, 800.000000)"'
+            new_transform = 'transform="translate(620.000000, 780.000000)"'
             
             if old_transform in svg_content:
                 svg_content = svg_content.replace(old_transform, new_transform)
                 print("Okinawa moved.")
+                
+                # Add Separator Line (Polyline) to the SVG
+                # We insert it before the closing </svg> tag or inside the main group if possible.
+                # The main group has a transform, so we should be careful.
+                # Let's inspect the SVG structure from previous reads.
+                # It has <g class="svg-map" ...> <g class="prefectures" ...>
+                # We can append the line to the end of the content before </svg>.
+                # Since we are just concatenating strings, we can append it after the map content.
+                # However, the map content is inside 'svg_content'. 
+                # Ideally we inject it into the 'svg-map' group or just overlay it.
+                # The 'svg-map' group has a transform. If we add it outside, we use raw coordinates.
+                # Let's add it typically at the end of the SVG content, usually before the last </g></g> or </svg>.
+                # To be safe and simple, let's just replace the closing tag of the "prefectures" group if we can find it,
+                # or just append to the end of the string before `</svg>`.
+                
+                # Coordinates for the separator line based on the user image:
+                # Starts around (550, 600) goes down-right, then down? 
+                # Or based on the image: L-shape or zig-zag.
+                # Image shows: Starts left of Tohoku, goes down, then right to enclose Okinawa.
+                # Let's approximate: 
+                # (500, 500) -> (800, 800)? No, user image shows a specific "cutout" style.
+                # Looking at image: It seems to be a line separating the main map from the bottom right inset.
+                # The line goes from ~ (600, 800) up and left?
+                # Let's draw a simple "corner" line for the inset.
+                # Points: 580,1000 (bottom) -> 580,750 (up) -> 1000,550 (right-up diagonal)?
+                # Let's try to match the "Japan map inset line" style.
+                # Usually it's a line like: (550, 600) -> (700, 600) -> (800, 500)?
+                # User image: straight line then diagonal up-right.
+                # Let's try: <polyline points="550,1000 550,750 1000,300" ... /> (Approximate)
+                # Actually, let's look at the uploaded image visually.
+                # It's a line separating the ocean.
+                # Let's add a polyline: <polyline points="600,1000 600,750 950,450" fill="none" stroke="#888" stroke-width="2"/>
+                
+                separator_line = '<polyline points="580,1000 580,750 1000,400" fill="none" stroke="#999" stroke-width="1" />'
+                svg_content = svg_content.replace('</svg>', f'{separator_line}</svg>')
+                
             else:
                 print("Warning: Okinawa transform string not found exactly.")
         else:
@@ -359,19 +392,15 @@ html_tail = """
 
                 <div class="info-card">
                     <div style="padding:15px;">
-                        <span class="info-label">【必見スポット】</span>
-                        <div class="info-content">${data.spot}</div>
+                        <span class="info-label">【観光情報】</span>
+                        <!-- Consolidated Info or Default Text -->
+                        <div class="info-content">
+                            ${(data.spot && data.spot !== defaultData.spot) ? `<strong>必見スポット:</strong> ${data.spot}<br>` : ''}
+                            ${(data.food && data.food !== defaultData.food) ? `<strong>ローカルグルメ:</strong> ${data.food}<br>` : ''}
+                            ${(!data.spot || data.spot === defaultData.spot) ? '地元の隠れた名所や絶品グルメなど、魅力的な観光情報を準備中です。' : ''}
+                        </div>
                     </div>
                 </div>
-
-                <div class="info-card">
-                    <div style="padding:15px;">
-                        <span class="info-label">【ローカルグルメ】</span>
-                        <div class="info-content">${data.food}</div>
-                    </div>
-                </div>
-
-                <!-- Hidden Gems Removed -->
 
                 <div class="action-buttons">
                     <a href="https://www.google.com/search?q=${encodeURIComponent(data.name)}+観光+おすすめ" target="_blank" class="btn btn-google">
