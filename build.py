@@ -7,6 +7,27 @@ try:
         # Remove XML declaration if present
         if svg_content.startswith('<?xml'):
             svg_content = svg_content.split('?>', 1)[1].strip()
+            
+        # Move Okinawa to Bottom Right
+        # We search for the specific group class string to be safe
+        search_str = 'class="okinawa kyushu-okinawa prefecture" data-code="47"'
+        
+        if search_str in svg_content:
+            # Find the transform part in this tag
+            # We assume standard formatting or just simple replacement if unique enough
+            # The original transform is transform="translate(52.000000, 193.000000)"
+            # We will use string replace on the specific known string from the file
+            old_transform = 'transform="translate(52.000000, 193.000000)"'
+            new_transform = 'transform="translate(600.000000, 800.000000)"'
+            
+            if old_transform in svg_content:
+                svg_content = svg_content.replace(old_transform, new_transform)
+                print("Okinawa moved.")
+            else:
+                print("Warning: Okinawa transform string not found exactly.")
+        else:
+             print("Warning: Okinawa group not found.")
+
 except Exception as e:
     print(f"Error reading SVG: {e}")
     exit(1)
@@ -73,15 +94,14 @@ html_head = """<!DOCTYPE html>
         .prefecture {
             fill: var(--primary-color);
             stroke: var(--border-color);
-            stroke-width: 1px;
+            stroke-width: 0.5px; /* Thinner border */
             cursor: pointer;
-            transition: fill 0.2s ease; /* Removed transform to prevent shaking */
-            pointer-events: all; /* Ensure clicks are registered */
+            transition: fill 0.2s ease;
+            pointer-events: all;
         }
 
         .prefecture:hover {
             fill: var(--hover-color);
-            z-index: 2; /* Bring to front if possible, though SVG z-index is DOM order */
         }
         
         .prefecture.active {
@@ -278,7 +298,7 @@ html_tail = """
         const defaultData = {
             spot: "情報準備中...",
             food: "情報準備中...",
-            hidden: "情報準備中...",
+            hidden: "", // Removed from display
             desc: "現在、この都道府県の特別な観光プランを計画中です。詳細の公開まで今しばらくお待ちください。"
         };
 
@@ -286,17 +306,16 @@ html_tail = """
         const panel = document.getElementById('infoPanel');
         
         // Ensure SVG loaded before attaching
-        // Since it's inline, it should be ready.
         const prefectures = document.querySelectorAll('.prefecture');
 
         // Event Listeners
         prefectures.forEach(pref => {
             // Click
             pref.addEventListener('click', (e) => {
-                e.preventDefault(); // Prevent weird default behaviors
+                e.preventDefault(); 
                 e.stopPropagation();
 
-                const targetGroup = e.currentTarget; // The element with .prefecture class
+                const targetGroup = e.currentTarget; 
                 if (!targetGroup) return;
 
                 const codeStr = targetGroup.getAttribute('data-code');
@@ -315,9 +334,8 @@ html_tail = """
                 }
 
                 if (!data) {
+                    // Use Default Data
                     data = { ...defaultData, name: name, en: en };
-                } else {
-                    // Update name/en from data if available, or keep title if data missing them (our data has them)
                 }
 
                 updatePanel(data);
@@ -326,8 +344,6 @@ html_tail = """
                 prefectures.forEach(p => p.classList.remove('active'));
                 targetGroup.classList.add('active');
             });
-            
-            // Mouseover is handled by CSS, but we can log if needed
         });
 
         function updatePanel(data) {
@@ -355,12 +371,7 @@ html_tail = """
                     </div>
                 </div>
 
-                <div class="info-card">
-                    <div style="padding:15px;">
-                        <span class="info-label">【旅の穴場】</span>
-                        <div class="info-content">${data.hidden}</div>
-                    </div>
-                </div>
+                <!-- Hidden Gems Removed -->
 
                 <div class="action-buttons">
                     <a href="https://www.google.com/search?q=${encodeURIComponent(data.name)}+観光+おすすめ" target="_blank" class="btn btn-google">
